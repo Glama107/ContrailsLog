@@ -1,6 +1,6 @@
-# ContrailLog
+# ContrailsLog
 
-ContrailLog — minimal PWA globe for pilot flights
+ContrailsLog — minimal PWA globe for pilot flights
 
 Quick start
 
