@@ -1,0 +1,45 @@
+{
+  "airports": {
+    "LFPG": { "lat": 48.8583, "lng": 2.3525, "city": "Paris CDG" },
+    "KJFK": { "lat": 40.6413, "lng": -73.7781, "city": "New York JFK" },
+    "EGLL": { "lat": 51.4700, "lng": -0.4543, "city": "London Heathrow" },
+    "LFMN": { "lat": 43.6657, "lng": 7.2159, "city": "Nice" },
+    "LSGG": { "lat": 46.2381, "lng": 6.1087, "city": "Genève" },
+    "OMDB": { "lat": 25.2532, "lng": 55.3657, "city": "Dubai" }
+  },
+  "flights": [
+    {
+      "id": 1,
+      "date": "2026-01-10",
+      "aircraft": "A320",
+      "dep": "LFPG",
+      "arr": "LFMN",
+      "startLat": 48.8583,
+      "startLng": 2.3525,
+      "endLat": 43.6657,
+      "endLng": 7.2159
+    },
+    {
+      "id": 2,
+      "date": "2026-02-02",
+      "aircraft": "B738",
+      "dep": "KJFK",
+      "arr": "EGLL",
+      "startLat": 40.6413,
+      "startLng": -73.7781,
+      "endLat": 51.4700,
+      "endLng": -0.4543
+    },
+    {
+      "id": 3,
+      "date": "2026-03-15",
+      "aircraft": "A350",
+      "dep": "LSGG",
+      "arr": "OMDB",
+      "startLat": 46.2381,
+      "startLng": 6.1087,
+      "endLat": 25.2532,
+      "endLng": 55.3657
+    }
+  ]
+}
