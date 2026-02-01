@@ -68,7 +68,12 @@ export default function Globe3D({ flights = [], dark = false }) {
         arcStroke={0.9}
         arcDashLength={0.4}
         arcDashGap={0.6}
-        arcDashAnimateTime={2000}
+        arcDashAnimateTime={d => {
+          const key = d.name || (d.startLat && d.endLat ? `${d.startLat},${d.endLat}` : '')
+          let h = 0
+          for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0
+          return 1200 + (h % 1800)
+        }}
       />
     </div>
   )

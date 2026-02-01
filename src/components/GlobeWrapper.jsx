@@ -56,15 +56,40 @@ export default function GlobeWrapper({ flights = [], initialView = { lat: 48, ln
     DEFAULT: '#9ca3af'
   }
 
+  // convert hex color (#rrggbb) to rgba string with alpha
+  const hexToRgba = (hex, alpha = 1) => {
+    if (!hex) return `rgba(156,163,175,${alpha})`
+    const h = hex.replace('#', '')
+    const bigint = parseInt(h, 16)
+    const r = (bigint >> 16) & 255
+    const g = (bigint >> 8) & 255
+    const b = bigint & 255
+    return `rgba(${r},${g},${b},${alpha})`
+  }
+
+  // simple stable hash for strings -> small integer
+  const idHash = (s) => {
+    if (!s) return 0
+    let h = 0
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+    return h
+  }
+
+  // small 3D marker geometry/materials were removed — labels will show airport points
+
   // when flights change, build a set of unique airport markers and fade them in
   useEffect(() => {
-    // collect unique coords from flights (dep/arr)
+    // collect unique coords from flights (dep/arr) but dedupe by airport code
     const map = {}
     flights.forEach(f => {
-      if (f.startLat != null && f.startLng != null) map[`${f.dep}_${f.startLat}_${f.startLng}`] = { code: f.dep, lat: f.startLat, lng: f.startLng }
-      if (f.endLat != null && f.endLng != null) map[`${f.arr}_${f.endLat}_${f.endLng}`] = { code: f.arr, lat: f.endLat, lng: f.endLng }
+      if (f.startLat != null && f.startLng != null) {
+        if (!map[f.dep]) map[f.dep] = { code: f.dep, lat: f.startLat, lng: f.startLng }
+      }
+      if (f.endLat != null && f.endLng != null) {
+        if (!map[f.arr]) map[f.arr] = { code: f.arr, lat: f.endLat, lng: f.endLng }
+      }
     })
-    const list = Object.values(map).map((m, i) => ({ id: `${m.code}_${i}`, code: m.code, lat: m.lat, lng: m.lng, alpha: 0 }))
+    const list = Object.values(map).map(m => ({ id: m.code, code: m.code, lat: m.lat, lng: m.lng, alpha: 0 }))
     setMarkers(list)
 
     // animate alpha to 1
@@ -102,27 +127,25 @@ export default function GlobeWrapper({ flights = [], initialView = { lat: 48, ln
       atmosphereColor="#050505"
       atmosphereDaylightAlpha={0.02}
       arcsData={flights}
-      arcColor={d => aircraftColor(d.aircraft)}
-      arcDashLength={0.4}
-      arcDashGap={1}
-      arcDashAnimateTime={2000}
-      arcStroke={0.7}
-      pointsData={markers}
-      pointLat={d => d.lat}
-      pointLng={d => d.lng}
-      pointColor={d => `rgba(96,165,250,${d.alpha || 0})`}
-      pointRadius={d => 0.35 + (d.alpha || 0) * 0.25}
-      pointAltitude={0.01}
-      pointsMerge={true}
+      arcColor={d => hexToRgba(aircraftColor(d.aircraft), 0.65)}
+      arcDashLength={0.25}
+      arcDashGap={1.2}
+      arcDashAnimateTime={d => {
+        const key = d.id || d.dep || d.arr || (d.startLat && d.endLat ? `${d.startLat},${d.endLat}` : '')
+        // base 1200ms, plus a pseudo-random offset up to 1800ms to stagger
+        return 1200 + (idHash(String(key)) % 1800)
+      }}
+      arcStroke={0.18}
+      /* airport markers removed; relying on labels (with built-in dot) */
       labelsData={markers}
       labelLat={d => d.lat}
       labelLng={d => d.lng}
       labelText={d => d.code}
-      labelSize={1}
-      labelDotRadius={0.35}
-      labelColor={d => `rgba(255,255,255,${d.alpha || 0})`}
-      labelAltitude={0.015}
-      labelResolution={2}
+      labelSize={0.38}
+      labelDotRadius={0.08}
+      labelColor={d => `rgba(255,255,255,${0.95 * (d.alpha || 0)})`}
+      labelAltitude={0.02}
+      labelResolution={1}
       polygonsData={countries}
       polygonCapColor={() => '#444444'}
       polygonSideColor={() => '#2e2e2e'}

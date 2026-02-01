@@ -55,6 +55,7 @@ export default function FilterButton({ flights = [], onSelect = () => {}, select
             <button onClick={() => { onSelect('all'); setOpen(false) }} style={itemStyle(selected.mode === 'all')}>Tous</button>
             <button onClick={() => { onSelect('thisMonth'); setOpen(false) }} style={itemStyle(selected.mode === 'thisMonth')}>Ce mois</button>
             <button onClick={() => { onSelect('lastMonth'); setOpen(false) }} style={itemStyle(selected.mode === 'lastMonth')}>Mois dernier</button>
+            <button onClick={() => { onSelect('last30'); setOpen(false) }} style={itemStyle(selected.mode === 'last30')}>30 derniers jours</button>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: 8 }}>
               <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 6 }}>Par appareil</div>
               {aircrafts.length ? aircrafts.map(a => (

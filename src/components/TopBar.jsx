@@ -10,12 +10,13 @@ export default function TopBar({ flights = [] }) {
     return () => window.removeEventListener('resize', onResize)
   }, [])
   const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() // 0-index
-  const thisMonthCount = flights.filter(f => {
+  const cutoff = new Date(now)
+  cutoff.setDate(cutoff.getDate() - 30)
+  const last30Count = flights.filter(f => {
     if (!f.date) return false
-    const d = new Date(f.date)
-    return d.getFullYear() === year && d.getMonth() === month
+    const d = new Date(f.date + 'T00:00:00')
+    if (isNaN(d)) return false
+    return d >= cutoff && d <= now
   }).length
 
   const byAircraft = flights.reduce((acc, f) => {
@@ -79,8 +80,11 @@ export default function TopBar({ flights = [] }) {
 
       <div style={rightBox}>
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, textAlign: 'center', minWidth: 84 }}>
-          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>{thisMonthCount}</div>
-          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>Vols du mois</div>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1, display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 8 }}>
+            <span>{last30Count}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#9ca3af' }}>vols</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>30 derniers jours</div>
         </div>
       </div>
     </>

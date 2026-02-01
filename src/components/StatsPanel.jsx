@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 
 export default function StatsPanel({ isOpen, onClose, flights = [] }) {
   const COLLAPSED = 140
-  const EXPANDED_RATIO = 0.6
+  const EXPANDED_RATIO = 0.85
   const DURATION = 220
 
   const [height, setHeight] = useState(COLLAPSED)
@@ -11,28 +11,26 @@ export default function StatsPanel({ isOpen, onClose, flights = [] }) {
   const recentDragRef = useRef(0)
   const [closing, setClosing] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [range, setRange] = useState('all') // 'all' | '30d' | '6m' | '1y'
   const [typed, setTyped] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 10
   const startYRef = useRef(0)
   const startHRef = useRef(COLLAPSED)
   const containerRef = useRef(null)
 
   useEffect(() => {
     if (!isOpen) setHeight(COLLAPSED)
-    // reset dragging
     setDragging(false)
-    // reset animation states
     setClosing(false)
     setVisible(false)
     setTyped('')
-    
-    // trigger entrance animation after mount
     if (isOpen) {
-      const t = setTimeout(()=> setVisible(true), 30)
+      const t = setTimeout(() => setVisible(true), 30)
       return () => clearTimeout(t)
     }
   }, [isOpen])
 
-  // typing effect for title when panel becomes visible
   useEffect(() => {
     if (!visible) return
     const text = 'Statistiques'
@@ -45,44 +43,28 @@ export default function StatsPanel({ isOpen, onClose, flights = [] }) {
     return () => clearInterval(t)
   }, [visible])
 
-  // attach outside-click listener after a short delay so opening clicks don't immediately close
   useEffect(() => {
     if (!isOpen) return
     let timer = null
     let attached = false
-
     function onDocClick(e) {
       if (draggingRef.current) return
-      // ignore clicks that happen right after a drag to avoid accidental close
       if (Date.now() - (recentDragRef.current || 0) < 400) return
       if (!containerRef.current) return
       if (containerRef.current.contains(e.target)) return
-      // if click is outside, run closing animation then notify parent
       setClosing(true)
       setTimeout(() => { setClosing(false); onClose && onClose() }, DURATION)
     }
-
-    // small delay before attaching the listener to avoid catching the open click
-    timer = setTimeout(() => {
-      document.addEventListener('click', onDocClick)
-      attached = true
-    }, 350)
-
-    return () => {
-      clearTimeout(timer)
-      if (attached) document.removeEventListener('click', onDocClick)
-    }
+    timer = setTimeout(() => { document.addEventListener('click', onDocClick); attached = true }, 350)
+    return () => { clearTimeout(timer); if (attached) document.removeEventListener('click', onDocClick) }
   }, [isOpen, onClose])
 
-  // keep a ref in sync with dragging state so the document listener can read latest
   useEffect(() => { draggingRef.current = dragging }, [dragging])
 
   useEffect(() => {
     const onMove = (e) => {
       if (!dragging) return
-      if (e && e.touches && e.touches.length) {
-        if (e.preventDefault) e.preventDefault()
-      }
+      if (e && e.touches && e.touches.length) { if (e.preventDefault) e.preventDefault() }
       const clientY = e.touches ? e.touches[0].clientY : e.clientY
       const dy = startYRef.current - clientY
       const maxH = Math.round(window.innerHeight * EXPANDED_RATIO)
@@ -103,21 +85,36 @@ export default function StatsPanel({ isOpen, onClose, flights = [] }) {
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-      window.removeEventListener('touchmove', onMove)
-      window.removeEventListener('touchend', onUp)
-    }
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp) }
   }, [dragging, height])
 
   if (!isOpen) return null
 
-  const total = flights.length
-  const aircrafts = Array.from(new Set(flights.map(f => (f.aircraft || '').toUpperCase()))).filter(Boolean)
+  function withinRange(dateStr) {
+    if (!dateStr) return false
+    if (range === 'all') return true
+    const d = new Date(dateStr + 'T00:00:00')
+    if (isNaN(d)) return false
+    const now = new Date()
+    const copy = new Date(now)
+    if (range === '30d') copy.setDate(copy.getDate() - 30)
+    else if (range === '6m') copy.setMonth(copy.getMonth() - 6)
+    else if (range === '1y') copy.setFullYear(copy.getFullYear() - 1)
+    return d >= copy && d <= now
+  }
+
+  const filteredFlights = flights.filter(f => withinRange(f.date))
+  const total = filteredFlights.length
+  const aircrafts = Array.from(new Set(filteredFlights.map(f => (f.aircraft || '').toUpperCase()))).filter(Boolean)
   const airports = {}
-  flights.forEach(f => { airports[f.dep] = (airports[f.dep] || 0) + 1; airports[f.arr] = (airports[f.arr] || 0) + 1 })
+  filteredFlights.forEach(f => { airports[f.dep] = (airports[f.dep] || 0) + 1; airports[f.arr] = (airports[f.arr] || 0) + 1 })
   const topAirports = Object.entries(airports).sort((a,b)=>b[1]-a[1]).slice(0,5)
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const pageSafe = Math.max(1, Math.min(page, pageCount))
+  const startIndex = (pageSafe - 1) * PAGE_SIZE
+  const endIndex = Math.min(total, startIndex + PAGE_SIZE)
+  const paginatedFlights = filteredFlights.slice(startIndex, endIndex)
 
   function onPointerDown(e) {
     if (e && e.preventDefault) e.preventDefault()
@@ -148,9 +145,7 @@ export default function StatsPanel({ isOpen, onClose, flights = [] }) {
         <div onMouseDown={onPointerDown} onTouchStart={onPointerDown} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', touchAction: 'none', cursor: dragging ? 'grabbing' : 'grab' }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '0 auto', justifyContent: 'center' }}>
             <div style={{ width: 8, height: 8, background: '#60a5fa', borderRadius: 4 }} />
-            <strong style={{ letterSpacing: 1 }}>
-              {typed}
-            </strong>
+            <strong style={{ letterSpacing: 1 }}>{typed}</strong>
             <span style={{ color: '#9ca3af', marginLeft: 8 }}>{height > COLLAPSED ? 'Détails' : 'Aperçu'}</span>
           </div>
           <div style={{ position: 'absolute', right: 12, top: 8 }}>
@@ -158,7 +153,14 @@ export default function StatsPanel({ isOpen, onClose, flights = [] }) {
           </div>
         </div>
 
-        <div style={{ overflow: 'auto', padding: 14, height: `calc(100% - 52px)` }}>
+        <div style={{ overflow: 'auto', padding: '14px 14px 28px', height: `calc(100% - 52px)` }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: '#9ca3af', marginRight: 6 }}>Période :</div>
+            {['all','30d','6m','1y'].map(r => (
+              <button key={r} onClick={() => { setRange(r); setPage(1) }} style={{ padding: '6px 10px', borderRadius: 8, border: 'none', background: range === r ? '#1f2937' : 'transparent', color: range === r ? '#fff' : '#9ca3af', cursor: 'pointer' }}>{r === 'all' ? 'Tous' : (r === '30d' ? '30j' : r === '6m' ? '6m' : '1a')}</button>
+            ))}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12, justifyItems: 'center', textAlign: 'center' }}>
             <div style={{ padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ fontSize: 12, color: '#9ca3af' }}>Vols</div>
@@ -184,15 +186,24 @@ export default function StatsPanel({ isOpen, onClose, flights = [] }) {
           <div style={{ marginTop: 12 }}>
             <h4 style={{ margin: '6px 0' }}>Liste des vols</h4>
             <div style={{ display: 'grid', gap: 8 }}>
-              {flights.map(f => (
+              {paginatedFlights.map(f => (
                 <div key={f.id} style={{ padding: 10, borderRadius: 8, background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{f.dep} → {f.arr}</div>
-                      <div style={{ fontSize: 12, color: '#9ca3af' }}>{f.date} • {f.aircraft}</div>
-                    </div>
-                    <div style={{ color: '#9ca3af', marginTop: 8 }}>#{f.id}</div>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{f.dep} → {f.arr}</div>
+                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{f.date} • {f.aircraft}</div>
+                  </div>
+                  <div style={{ color: '#9ca3af', marginTop: 8 }}>#{f.id}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingBottom: 6 }}>
+              <div style={{ fontSize: 12, color: '#9ca3af' }}>{total === 0 ? 'Aucun vol' : `Affichage ${startIndex+1}–${endIndex} sur ${total}`}</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button aria-label="Précédent" onClick={() => setPage(p => Math.max(1, p-1))} disabled={pageSafe === 1} style={{ padding: '6px 8px', borderRadius: 8, border: 'none', background: pageSafe === 1 ? 'rgba(255,255,255,0.02)' : '#1f2937', color: '#fff', cursor: pageSafe === 1 ? 'default' : 'pointer' }}>‹</button>
+                <div style={{ color: '#9ca3af', fontSize: 13 }}>{pageSafe} / {pageCount}</div>
+                <button aria-label="Suivant" onClick={() => setPage(p => Math.min(pageCount, p+1))} disabled={pageSafe === pageCount} style={{ padding: '6px 8px', borderRadius: 8, border: 'none', background: pageSafe === pageCount ? 'rgba(255,255,255,0.02)' : '#1f2937', color: '#fff', cursor: pageSafe === pageCount ? 'default' : 'pointer' }}>›</button>
+              </div>
             </div>
           </div>
         </div>

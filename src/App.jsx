@@ -13,7 +13,7 @@ function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [editingFlight, setEditingFlight] = useState(null)
-  const [filters, setFilters] = useState({ mode: 'all', aircraft: null })
+  const [filters, setFilters] = useState({ mode: 'last30', aircraft: null })
 
   // 1. Charger les données au démarrage depuis le fichier JSON fourni
   useEffect(() => {
@@ -108,6 +108,7 @@ function App() {
     if (mode === 'all') setFilters({ mode: 'all', aircraft: null })
     else if (mode === 'thisMonth') setFilters({ mode: 'thisMonth', aircraft: null })
     else if (mode === 'lastMonth') setFilters({ mode: 'lastMonth', aircraft: null })
+    else if (mode === 'last30') setFilters({ mode: 'last30', aircraft: null })
     else if (mode === 'aircraft') setFilters({ mode: 'aircraft', aircraft: value })
     else setFilters({ mode: 'all', aircraft: null })
   }
@@ -116,6 +117,14 @@ function App() {
   function matchesFilter(f) {
     if (!f) return false
     if (filters.mode === 'all') return true
+      if (filters.mode === 'last30') {
+        if (!f.date) return false
+        const d = new Date(f.date + 'T00:00:00')
+        const now = new Date()
+        const cutoff = new Date(now)
+        cutoff.setDate(cutoff.getDate() - 30)
+        return d >= cutoff && d <= now
+      }
     if (filters.mode === 'thisMonth') {
       if (!f.date) return false
       const d = new Date(f.date)
